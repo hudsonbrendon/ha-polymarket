@@ -1,89 +1,169 @@
-"""Adds config flow for Blueprint."""
+"""Config and options flow for the Polymarket integration."""
 
 from __future__ import annotations
 
+import re
+from typing import Any
+
 import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
+from homeassistant.core import callback
 from homeassistant.helpers import selector
 from homeassistant.helpers.aiohttp_client import async_create_clientsession
-from slugify import slugify
 
-from .api import (
-    IntegrationBlueprintApiClient,
-    IntegrationBlueprintApiClientAuthenticationError,
-    IntegrationBlueprintApiClientCommunicationError,
-    IntegrationBlueprintApiClientError,
+from .api import PolymarketApiClient, PolymarketApiClientError
+from .const import (
+    CATEGORIES,
+    CONF_CATEGORY,
+    CONF_SCAN_INTERVAL,
+    CONF_TOP_N,
+    CONF_WALLET_ADDRESS,
+    DEFAULT_CATEGORY,
+    DEFAULT_SCAN_INTERVAL,
+    DEFAULT_TOP_N,
+    DOMAIN,
+    LOGGER,
+    MAX_SCAN_INTERVAL,
+    MAX_TOP_N,
+    MIN_SCAN_INTERVAL,
+    MIN_TOP_N,
 )
-from .const import DOMAIN, LOGGER
+
+_WALLET_RE = re.compile(r"^0x[a-fA-F0-9]{40}$")
 
 
-class BlueprintFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
-    """Config flow for Blueprint."""
+def _category_selector() -> selector.SelectSelector:
+    return selector.SelectSelector(
+        selector.SelectSelectorConfig(
+            options=[
+                selector.SelectOptionDict(value=slug, label=label)
+                for slug, label in CATEGORIES.items()
+            ],
+            mode=selector.SelectSelectorMode.DROPDOWN,
+            custom_value=True,
+        )
+    )
+
+
+def _top_n_selector() -> selector.NumberSelector:
+    return selector.NumberSelector(
+        selector.NumberSelectorConfig(
+            min=MIN_TOP_N, max=MAX_TOP_N, step=1, mode=selector.NumberSelectorMode.BOX
+        )
+    )
+
+
+def _scan_interval_selector() -> selector.NumberSelector:
+    return selector.NumberSelector(
+        selector.NumberSelectorConfig(
+            min=MIN_SCAN_INTERVAL,
+            max=MAX_SCAN_INTERVAL,
+            step=1,
+            unit_of_measurement="min",
+            mode=selector.NumberSelectorMode.BOX,
+        )
+    )
+
+
+class PolymarketFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
+    """Handle the initial config flow."""
 
     VERSION = 1
 
     async def async_step_user(
-        self,
-        user_input: dict | None = None,
+        self, user_input: dict[str, Any] | None = None
     ) -> config_entries.ConfigFlowResult:
-        """Handle a flow initialized by the user."""
-        _errors = {}
+        """Collect category, top N, and an optional wallet address."""
+        errors: dict[str, str] = {}
         if user_input is not None:
-            try:
-                await self._test_credentials(
-                    username=user_input[CONF_USERNAME],
-                    password=user_input[CONF_PASSWORD],
-                )
-            except IntegrationBlueprintApiClientAuthenticationError as exception:
-                LOGGER.warning(exception)
-                _errors["base"] = "auth"
-            except IntegrationBlueprintApiClientCommunicationError as exception:
-                LOGGER.error(exception)
-                _errors["base"] = "connection"
-            except IntegrationBlueprintApiClientError as exception:
-                LOGGER.exception(exception)
-                _errors["base"] = "unknown"
-            else:
-                await self.async_set_unique_id(
-                    ## Do NOT use this in production code
-                    ## The unique_id should never be something that can change
-                    ## https://developers.home-assistant.io/docs/config_entries_config_flow_handler#unique-ids
-                    unique_id=slugify(user_input[CONF_USERNAME])
-                )
-                self._abort_if_unique_id_configured()
-                return self.async_create_entry(
-                    title=user_input[CONF_USERNAME],
-                    data=user_input,
-                )
+            wallet = (user_input.get(CONF_WALLET_ADDRESS) or "").strip()
+            category = user_input[CONF_CATEGORY].strip().lower()
+            if wallet and not _WALLET_RE.match(wallet):
+                errors[CONF_WALLET_ADDRESS] = "invalid_wallet"
+            if not errors:
+                try:
+                    await self._validate(category, wallet or None)
+                except PolymarketApiClientError as exception:
+                    LOGGER.warning("Validation failed: %s", exception)
+                    errors["base"] = "cannot_connect"
+                else:
+                    await self.async_set_unique_id(
+                        f"{category}:{wallet.lower() or 'no-wallet'}"
+                    )
+                    self._abort_if_unique_id_configured()
+                    title = CATEGORIES.get(category, category.title())
+                    if wallet:
+                        title = f"{title} + wallet"
+                    return self.async_create_entry(
+                        title=title,
+                        data={
+                            CONF_CATEGORY: category,
+                            CONF_TOP_N: int(user_input[CONF_TOP_N]),
+                            CONF_WALLET_ADDRESS: wallet,
+                        },
+                    )
 
         return self.async_show_form(
             step_id="user",
             data_schema=vol.Schema(
                 {
                     vol.Required(
-                        CONF_USERNAME,
-                        default=(user_input or {}).get(CONF_USERNAME, vol.UNDEFINED),
-                    ): selector.TextSelector(
+                        CONF_CATEGORY, default=DEFAULT_CATEGORY
+                    ): _category_selector(),
+                    vol.Required(
+                        CONF_TOP_N, default=DEFAULT_TOP_N
+                    ): _top_n_selector(),
+                    vol.Optional(CONF_WALLET_ADDRESS, default=""): selector.TextSelector(
                         selector.TextSelectorConfig(
-                            type=selector.TextSelectorType.TEXT,
-                        ),
+                            type=selector.TextSelectorType.TEXT
+                        )
                     ),
-                    vol.Required(CONF_PASSWORD): selector.TextSelector(
-                        selector.TextSelectorConfig(
-                            type=selector.TextSelectorType.PASSWORD,
-                        ),
-                    ),
-                },
+                }
             ),
-            errors=_errors,
+            errors=errors,
         )
 
-    async def _test_credentials(self, username: str, password: str) -> None:
-        """Validate credentials."""
-        client = IntegrationBlueprintApiClient(
-            username=username,
-            password=password,
-            session=async_create_clientsession(self.hass),
+    async def _validate(self, category: str, wallet: str | None) -> None:
+        """Hit the APIs once to confirm the category (and wallet) work."""
+        client = PolymarketApiClient(
+            session=async_create_clientsession(self.hass)
         )
-        await client.async_get_data()
+        await client.async_get_category_markets(category, top_n=1)
+        if wallet:
+            await client.async_get_portfolio(wallet, top_n=1)
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(
+        config_entry: config_entries.ConfigEntry,
+    ) -> PolymarketOptionsFlow:
+        """Return the options flow."""
+        return PolymarketOptionsFlow()
+
+
+class PolymarketOptionsFlow(config_entries.OptionsFlow):
+    """Allow editing top N and scan interval after setup."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> config_entries.ConfigFlowResult:
+        """Manage options."""
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        current = {**self.config_entry.data, **self.config_entry.options}
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(
+                        CONF_TOP_N,
+                        default=current.get(CONF_TOP_N, DEFAULT_TOP_N),
+                    ): _top_n_selector(),
+                    vol.Required(
+                        CONF_SCAN_INTERVAL,
+                        default=current.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL),
+                    ): _scan_interval_selector(),
+                }
+            ),
+        )
