@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Polymarket",
+        "description": "Sigue los principales mercados de una categoría de Polymarket y, opcionalmente, la cartera de una billetera. Todos los datos son públicos y de solo lectura; no se requiere iniciar sesión.",
+        "data": {
+          "category": "Categoría",
+          "top_n": "Número de mercados a seguir",
+          "wallet_address": "Dirección de billetera (opcional, 0x...)"
+        },
+        "data_description": {
+          "category": "Un slug de categoría de Polymarket como politics, sports o crypto.",
+          "top_n": "Cuántos mercados principales (por volumen de 24 h) crear como entidades.",
+          "wallet_address": "Dirección pública opcional para seguir también su cartera y posiciones abiertas."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "No se pudo conectar con Polymarket o no se encontró la categoría.",
+      "invalid_wallet": "La dirección de billetera debe ser 0x seguido de 40 caracteres hexadecimales."
+    },
+    "abort": {
+      "already_configured": "Esta combinación de categoría y billetera ya está configurada."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opciones de Polymarket",
+        "data": {
+          "top_n": "Número de mercados a seguir",
+          "scan_interval": "Intervalo de actualización (minutos)"
+        },
+        "data_description": {
+          "top_n": "Cuántos mercados principales (por volumen de 24 h) seguir.",
+          "scan_interval": "Con qué frecuencia actualizar los datos de Polymarket (5–360 minutos)."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "yes_odds": { "name": "Probabilidad SÍ" },
+      "volume_24h": { "name": "Volumen 24 h" },
+      "liquidity": { "name": "Liquidez" },
+      "portfolio_value": { "name": "Valor" },
+      "portfolio_pnl": { "name": "Ganancia/pérdida no realizada" },
+      "portfolio_positions": { "name": "Posiciones abiertas" }
+    },
+    "binary_sensor": {
+      "resolved": { "name": "Resuelto" }
+    }
+  }
+}

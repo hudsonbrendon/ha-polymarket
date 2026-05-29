@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Polymarket",
+        "description": "Acompanhe os principais mercados de uma categoria da Polymarket e, opcionalmente, a carteira de um endereço. Todos os dados são públicos e só de leitura; não é necessário iniciar sessão.",
+        "data": {
+          "category": "Categoria",
+          "top_n": "Número de mercados a acompanhar",
+          "wallet_address": "Endereço da carteira (opcional, 0x...)"
+        },
+        "data_description": {
+          "category": "Um slug de categoria da Polymarket como politics, sports ou crypto.",
+          "top_n": "Quantos mercados principais (por volume de 24 h) criar como entidades.",
+          "wallet_address": "Endereço público opcional para acompanhar também a carteira e as posições abertas."
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Não foi possível contactar a Polymarket ou a categoria não foi encontrada.",
+      "invalid_wallet": "O endereço da carteira deve ser 0x seguido de 40 caracteres hexadecimais."
+    },
+    "abort": {
+      "already_configured": "Esta combinação de categoria e carteira já está configurada."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Opções da Polymarket",
+        "data": {
+          "top_n": "Número de mercados a acompanhar",
+          "scan_interval": "Intervalo de atualização (minutos)"
+        },
+        "data_description": {
+          "top_n": "Quantos mercados principais (por volume de 24 h) acompanhar.",
+          "scan_interval": "Com que frequência atualizar os dados da Polymarket (5–360 minutos)."
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "yes_odds": { "name": "Probabilidade SIM" },
+      "volume_24h": { "name": "Volume 24 h" },
+      "liquidity": { "name": "Liquidez" },
+      "portfolio_value": { "name": "Valor" },
+      "portfolio_pnl": { "name": "Lucro/prejuízo não realizado" },
+      "portfolio_positions": { "name": "Posições abertas" }
+    },
+    "binary_sensor": {
+      "resolved": { "name": "Resolvido" }
+    }
+  }
+}

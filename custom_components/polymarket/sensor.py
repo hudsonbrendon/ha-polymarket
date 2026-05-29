@@ -53,7 +53,7 @@ class MarketOddsSensor(PolymarketMarketEntity, SensorEntity):
         """Init the odds sensor."""
         super().__init__(coordinator, market_id)
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{market_id}_odds"
-        self._attr_name = "YES odds"
+        self._attr_translation_key = "yes_odds"
 
     @property
     def native_value(self) -> float | None:
@@ -105,7 +105,7 @@ class MarketVolumeSensor(PolymarketMarketEntity, SensorEntity):
         """Init the volume sensor."""
         super().__init__(coordinator, market_id)
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{market_id}_vol24"
-        self._attr_name = "24h volume"
+        self._attr_translation_key = "volume_24h"
 
     @property
     def native_value(self) -> float | None:
@@ -126,7 +126,7 @@ class MarketLiquiditySensor(PolymarketMarketEntity, SensorEntity):
         """Init the liquidity sensor."""
         super().__init__(coordinator, market_id)
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{market_id}_liq"
-        self._attr_name = "Liquidity"
+        self._attr_translation_key = "liquidity"
 
     @property
     def native_value(self) -> float | None:
@@ -147,7 +147,7 @@ class PortfolioValueSensor(PolymarketPortfolioEntity, SensorEntity):
         """Init the portfolio value sensor."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_portfolio_value"
-        self._attr_name = "Value"
+        self._attr_translation_key = "portfolio_value"
 
     @property
     def native_value(self) -> float | None:
@@ -168,7 +168,7 @@ class PortfolioPnlSensor(PolymarketPortfolioEntity, SensorEntity):
         """Init the P&L sensor."""
         super().__init__(coordinator)
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_portfolio_pnl"
-        self._attr_name = "Unrealized P&L"
+        self._attr_translation_key = "portfolio_pnl"
 
     @property
     def native_value(self) -> float | None:
@@ -188,7 +188,7 @@ class PortfolioPositionsSensor(PolymarketPortfolioEntity, SensorEntity):
         self._attr_unique_id = (
             f"{coordinator.config_entry.entry_id}_portfolio_positions"
         )
-        self._attr_name = "Open positions"
+        self._attr_translation_key = "portfolio_positions"
 
     @property
     def native_value(self) -> int | None:
