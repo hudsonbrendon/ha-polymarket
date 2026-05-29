@@ -1,9 +1,4 @@
-"""
-Custom integration to integrate integration_blueprint with Home Assistant.
-
-For more details about this integration, please refer to
-https://github.com/ludeeus/integration_blueprint
-"""
+"""The Polymarket integration."""
 
 from __future__ import annotations
 
@@ -15,7 +10,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.loader import async_get_loaded_integration
 
 from .api import PolymarketApiClient
-from .const import DOMAIN, LOGGER
+from .const import CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL
 from .coordinator import PolymarketDataUpdateCoordinator
 from .data import PolymarketRuntimeData
 
@@ -27,48 +22,44 @@ if TYPE_CHECKING:
 PLATFORMS: list[Platform] = [
     Platform.SENSOR,
     Platform.BINARY_SENSOR,
-    Platform.SWITCH,
 ]
 
 
-# https://developers.home-assistant.io/docs/config_entries_index/#setting-up-an-entry
 async def async_setup_entry(
-    hass: HomeAssistant,
-    entry: PolymarketConfigEntry,
+    hass: HomeAssistant, entry: PolymarketConfigEntry
 ) -> bool:
-    """Set up this integration using UI."""
+    """Set up Polymarket from a config entry."""
     client = PolymarketApiClient(session=async_get_clientsession(hass))
+
+    scan_minutes = int(
+        {**entry.data, **entry.options}.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL)
+    )
     coordinator = PolymarketDataUpdateCoordinator(
         hass=hass,
         client=client,
-        update_interval=timedelta(hours=1),
+        update_interval=timedelta(minutes=scan_minutes),
     )
     entry.runtime_data = PolymarketRuntimeData(
         client=client,
-        integration=async_get_loaded_integration(hass, entry.domain),
         coordinator=coordinator,
+        integration=async_get_loaded_integration(hass, entry.domain),
     )
 
-    # https://developers.home-assistant.io/docs/integration_fetching_data#coordinated-single-api-poll-for-data-for-all-entities
     await coordinator.async_config_entry_first_refresh()
-
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(entry.add_update_listener(async_reload_entry))
-
     return True
 
 
 async def async_unload_entry(
-    hass: HomeAssistant,
-    entry: PolymarketConfigEntry,
+    hass: HomeAssistant, entry: PolymarketConfigEntry
 ) -> bool:
-    """Handle removal of an entry."""
+    """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
 async def async_reload_entry(
-    hass: HomeAssistant,
-    entry: PolymarketConfigEntry,
+    hass: HomeAssistant, entry: PolymarketConfigEntry
 ) -> None:
-    """Reload config entry."""
+    """Reload a config entry when options change."""
     await hass.config_entries.async_reload(entry.entry_id)

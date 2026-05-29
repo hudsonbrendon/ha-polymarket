@@ -2,20 +2,32 @@
     "config": {
         "step": {
             "user": {
-                "description": "If you need help with the configuration have a look here: https://github.com/ludeeus/integration_blueprint",
+                "title": "Polymarket",
+                "description": "Track the top markets in a Polymarket category, and optionally a wallet's portfolio. All data is read-only and public; no login is required.",
                 "data": {
-                    "username": "Username",
-                    "password": "Password"
+                    "category": "Category",
+                    "top_n": "Number of markets to track",
+                    "wallet_address": "Wallet address (optional, 0x...)"
                 }
             }
         },
         "error": {
-            "auth": "Username/Password is wrong.",
-            "connection": "Unable to connect to the server.",
-            "unknown": "Unknown error occurred."
+            "cannot_connect": "Could not reach Polymarket or the category was not found.",
+            "invalid_wallet": "Wallet address must look like 0x followed by 40 hex characters."
         },
         "abort": {
-            "already_configured": "This entry is already configured."
+            "already_configured": "This category and wallet combination is already configured."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Polymarket options",
+                "data": {
+                    "top_n": "Number of markets to track",
+                    "scan_interval": "Update interval (minutes)"
+                }
+            }
         }
     }
 }
