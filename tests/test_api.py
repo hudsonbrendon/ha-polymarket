@@ -79,7 +79,7 @@ def test_get_category_markets_resolves_tag_then_fetches_events():
     assert markets[0].event_title == "US/Iran"
     assert markets[0].yes_price == 0.4
     assert any("tag_id=2" in url for url in session.requested)
-    assert any("limit=5" in url for url in session.requested)
+    assert any("order=volume24hr" in url for url in session.requested)
 
 
 def test_get_category_markets_unknown_tag_raises():
@@ -114,3 +114,55 @@ def test_get_midpoint_parses_mid():
     session = _FakeSession({"/midpoint": {"mid": "0.42"}})
     client = PolymarketApiClient(session=session)
     assert asyncio.run(client.async_get_midpoint("T1")) == 0.42
+
+
+MULTI_EVENT_PAYLOAD = [
+    {
+        "title": "Event A",
+        "slug": "event-a",
+        "markets": [
+            {
+                "id": "a1",
+                "question": "A1?",
+                "outcomes": '["Yes","No"]',
+                "outcomePrices": '["0.5","0.5"]',
+                "clobTokenIds": '["x","y"]',
+                "volume24hr": 10.0,
+            },
+            {
+                "id": "a2",
+                "question": "A2?",
+                "outcomes": '["Yes","No"]',
+                "outcomePrices": '["0.5","0.5"]',
+                "clobTokenIds": '["x","y"]',
+                "volume24hr": 300.0,
+            },
+        ],
+    },
+    {
+        "title": "Event B",
+        "slug": "event-b",
+        "markets": [
+            {
+                "id": "b1",
+                "question": "B1?",
+                "outcomes": '["Yes","No"]',
+                "outcomePrices": '["0.5","0.5"]',
+                "clobTokenIds": '["x","y"]',
+                "volume24hr": 200.0,
+            }
+        ],
+    },
+]
+
+
+def test_get_category_markets_sorts_by_volume_and_respects_top_n():
+    session = _FakeSession(
+        {"/tags/slug/politics": TAG_PAYLOAD, "/events": MULTI_EVENT_PAYLOAD}
+    )
+    client = PolymarketApiClient(session=session)
+    markets = asyncio.run(client.async_get_category_markets("politics", top_n=2))
+
+    # Top 2 by 24h volume across ALL events: a2 (300) then b1 (200).
+    assert [m.market_id for m in markets] == ["a2", "b1"]
+    assert markets[0].volume_24hr == 300.0

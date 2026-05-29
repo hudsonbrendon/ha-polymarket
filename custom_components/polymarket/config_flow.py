@@ -9,7 +9,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 from homeassistant.helpers import selector
-from homeassistant.helpers.aiohttp_client import async_create_clientsession
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import PolymarketApiClient, PolymarketApiClientError
 from .const import (
@@ -123,7 +123,7 @@ class PolymarketFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _validate(self, category: str, wallet: str | None) -> None:
         """Hit the APIs once to confirm the category (and wallet) work."""
-        client = PolymarketApiClient(session=async_create_clientsession(self.hass))
+        client = PolymarketApiClient(session=async_get_clientsession(self.hass))
         await client.async_get_category_markets(category, top_n=1)
         if wallet:
             await client.async_get_portfolio(wallet, top_n=1)

@@ -52,10 +52,13 @@ class PolymarketApiClient:
     ) -> list[MarketInfo]:
         """Return the top `top_n` open markets in a category, by 24h volume."""
         tag_id = await self.async_resolve_tag_id(category)
+        # Widen the event pool so we can rank markets across events, not just
+        # take whatever markets happen to live in the top_n events.
+        event_limit = max(top_n, 20)
         events = await self._get(
             f"{GAMMA_BASE}/events",
             params={
-                "limit": top_n,
+                "limit": event_limit,
                 "order": "volume24hr",
                 "ascending": "false",
                 "closed": "false",
@@ -71,6 +74,7 @@ class PolymarketApiClient:
                 parse_market(raw_market, event_title=event_title, event_slug=event_slug)
                 for raw_market in event.get("markets", []) or []
             )
+        markets.sort(key=lambda market: market.volume_24hr, reverse=True)
         return markets[:top_n]
 
     async def async_get_midpoint(self, token_id: str) -> float | None:
