@@ -1,0 +1,168 @@
+"""Tests for PolymarketApiClient using a fake aiohttp session (no network)."""
+
+import asyncio
+from typing import Any
+
+from custom_components.polymarket.api import (
+    PolymarketApiClient,
+    PolymarketApiClientError,
+)
+
+
+class _FakeResponse:
+    def __init__(self, payload: Any, status: int = 200) -> None:
+        self._payload = payload
+        self.status = status
+
+    async def json(self) -> Any:
+        return self._payload
+
+    def raise_for_status(self) -> None:
+        if self.status >= 400:
+            msg = f"HTTP {self.status}"
+            raise RuntimeError(msg)
+
+    async def __aenter__(self) -> "_FakeResponse":
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        return None
+
+
+class _FakeSession:
+    """Records requests and returns queued responses keyed by URL substring."""
+
+    def __init__(self, routes: dict[str, Any]) -> None:
+        self._routes = routes
+        self.requested: list[str] = []
+
+    def request(self, method: str, url: str, **kwargs: Any) -> _FakeResponse:
+        params = kwargs.get("params") or {}
+        if params:
+            query = "&".join(f"{k}={v}" for k, v in params.items())
+            url = f"{url}?{query}"
+        self.requested.append(url)
+        for needle, payload in self._routes.items():
+            if needle in url:
+                return _FakeResponse(payload)
+        return _FakeResponse([], status=404)
+
+
+TAG_PAYLOAD = {"id": "2", "label": "Politics", "slug": "politics"}
+EVENTS_PAYLOAD = [
+    {
+        "title": "US/Iran",
+        "slug": "us-iran",
+        "markets": [
+            {
+                "id": "1",
+                "question": "Q1?",
+                "outcomes": '["Yes", "No"]',
+                "outcomePrices": '["0.4", "0.6"]',
+                "clobTokenIds": '["T1", "T2"]',
+                "volume24hr": 100.0,
+            }
+        ],
+    }
+]
+
+
+def test_get_category_markets_resolves_tag_then_fetches_events():
+    session = _FakeSession(
+        {"/tags/slug/politics": TAG_PAYLOAD, "/events": EVENTS_PAYLOAD}
+    )
+    client = PolymarketApiClient(session=session)
+    markets = asyncio.run(client.async_get_category_markets("politics", top_n=5))
+
+    assert len(markets) == 1
+    assert markets[0].question == "Q1?"
+    assert markets[0].event_title == "US/Iran"
+    assert markets[0].yes_price == 0.4
+    assert any("tag_id=2" in url for url in session.requested)
+    assert any("order=volume24hr" in url for url in session.requested)
+
+
+def test_get_category_markets_unknown_tag_raises():
+    session = _FakeSession({"/tags/slug/nope": {}, "/events": []})
+    client = PolymarketApiClient(session=session)
+    try:
+        asyncio.run(client.async_get_category_markets("nope", top_n=5))
+    except PolymarketApiClientError:
+        return
+    raise AssertionError("expected PolymarketApiClientError for unknown tag")
+
+
+VALUE_PAYLOAD = [{"user": "0xabc", "value": 1234.5}]
+POSITIONS_PAYLOAD = [
+    {"title": "P1", "currentValue": 900.0, "cashPnl": 100.0, "outcome": "Yes"},
+    {"title": "P2", "currentValue": 300.0, "cashPnl": -20.0, "outcome": "No"},
+]
+
+
+def test_get_portfolio_builds_value_and_positions():
+    session = _FakeSession({"/value": VALUE_PAYLOAD, "/positions": POSITIONS_PAYLOAD})
+    client = PolymarketApiClient(session=session)
+    portfolio = asyncio.run(client.async_get_portfolio("0xabc"))
+
+    assert portfolio.value == 1234.5
+    assert portfolio.position_count == 2
+    assert portfolio.total_cash_pnl == 80.0
+    assert portfolio.largest_position.title == "P1"
+
+
+def test_get_midpoint_parses_mid():
+    session = _FakeSession({"/midpoint": {"mid": "0.42"}})
+    client = PolymarketApiClient(session=session)
+    assert asyncio.run(client.async_get_midpoint("T1")) == 0.42
+
+
+MULTI_EVENT_PAYLOAD = [
+    {
+        "title": "Event A",
+        "slug": "event-a",
+        "markets": [
+            {
+                "id": "a1",
+                "question": "A1?",
+                "outcomes": '["Yes","No"]',
+                "outcomePrices": '["0.5","0.5"]',
+                "clobTokenIds": '["x","y"]',
+                "volume24hr": 10.0,
+            },
+            {
+                "id": "a2",
+                "question": "A2?",
+                "outcomes": '["Yes","No"]',
+                "outcomePrices": '["0.5","0.5"]',
+                "clobTokenIds": '["x","y"]',
+                "volume24hr": 300.0,
+            },
+        ],
+    },
+    {
+        "title": "Event B",
+        "slug": "event-b",
+        "markets": [
+            {
+                "id": "b1",
+                "question": "B1?",
+                "outcomes": '["Yes","No"]',
+                "outcomePrices": '["0.5","0.5"]',
+                "clobTokenIds": '["x","y"]',
+                "volume24hr": 200.0,
+            }
+        ],
+    },
+]
+
+
+def test_get_category_markets_sorts_by_volume_and_respects_top_n():
+    session = _FakeSession(
+        {"/tags/slug/politics": TAG_PAYLOAD, "/events": MULTI_EVENT_PAYLOAD}
+    )
+    client = PolymarketApiClient(session=session)
+    markets = asyncio.run(client.async_get_category_markets("politics", top_n=2))
+
+    # Top 2 by 24h volume across ALL events: a2 (300) then b1 (200).
+    assert [m.market_id for m in markets] == ["a2", "b1"]
+    assert markets[0].volume_24hr == 300.0

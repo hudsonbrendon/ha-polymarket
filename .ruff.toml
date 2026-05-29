@@ -23,3 +23,20 @@ keep-runtime-typing = true
 
 [lint.mccabe]
 max-complexity = 25
+
+[lint.per-file-ignores]
+"tests/*" = [
+    "S101",     # asserts are the point of tests
+    "S105",     # hardcoded "password" string in HA stub constants
+    "PLR2004",  # magic values in assertions are fine
+    "ANN",      # tests don't need type annotations
+    "D",        # tests don't need docstrings everywhere
+    "ARG",      # stub/fake methods have unused args by design
+    "SLF001",   # tests may touch private members
+    "TRY003",   # long exception messages in tests are fine
+    "EM101",    # string-literal exception in tests is fine
+    "ERA001",   # commented-out code heuristics misfire on test data
+    "PGH003",   # blanket type: ignore in the HA stub conftest
+    "PLC0415",  # imports not at top-level (conftest sets up stubs first)
+    "TC003",    # standard library imports in type-checking block (conftest needs types at runtime)
+]
