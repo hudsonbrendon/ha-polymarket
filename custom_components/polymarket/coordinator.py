@@ -48,7 +48,7 @@ class PolymarketDataUpdateCoordinator(DataUpdateCoordinator[PolymarketCoordinato
         self._client = client
 
     def _options(self) -> dict:
-        """Merged entry data + options (options win)."""
+        """Merge entry data and options (options win)."""
         return {**self.config_entry.data, **self.config_entry.options}
 
     async def _async_update_data(self) -> PolymarketCoordinatorData:
@@ -79,6 +79,8 @@ class PolymarketDataUpdateCoordinator(DataUpdateCoordinator[PolymarketCoordinato
                 portfolio = await self._client.async_get_portfolio(wallet)
             except PolymarketApiClientError as exception:
                 # A bad wallet shouldn't kill market data — log and continue.
-                LOGGER.warning("Failed to fetch portfolio for %s: %s", wallet, exception)
+                LOGGER.warning(
+                    "Failed to fetch portfolio for %s: %s", wallet, exception
+                )
 
         return PolymarketCoordinatorData(markets=markets, portfolio=portfolio)

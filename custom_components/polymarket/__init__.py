@@ -25,9 +25,7 @@ PLATFORMS: list[Platform] = [
 ]
 
 
-async def async_setup_entry(
-    hass: HomeAssistant, entry: PolymarketConfigEntry
-) -> bool:
+async def async_setup_entry(hass: HomeAssistant, entry: PolymarketConfigEntry) -> bool:
     """Set up Polymarket from a config entry."""
     client = PolymarketApiClient(session=async_get_clientsession(hass))
 
@@ -51,15 +49,11 @@ async def async_setup_entry(
     return True
 
 
-async def async_unload_entry(
-    hass: HomeAssistant, entry: PolymarketConfigEntry
-) -> bool:
+async def async_unload_entry(hass: HomeAssistant, entry: PolymarketConfigEntry) -> bool:
     """Unload a config entry."""
     return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
 
 
-async def async_reload_entry(
-    hass: HomeAssistant, entry: PolymarketConfigEntry
-) -> None:
+async def async_reload_entry(hass: HomeAssistant, entry: PolymarketConfigEntry) -> None:
     """Reload a config entry when options change."""
     await hass.config_entries.async_reload(entry.entry_id)

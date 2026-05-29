@@ -110,13 +110,11 @@ class PolymarketFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
                     vol.Required(
                         CONF_CATEGORY, default=DEFAULT_CATEGORY
                     ): _category_selector(),
-                    vol.Required(
-                        CONF_TOP_N, default=DEFAULT_TOP_N
-                    ): _top_n_selector(),
-                    vol.Optional(CONF_WALLET_ADDRESS, default=""): selector.TextSelector(
-                        selector.TextSelectorConfig(
-                            type=selector.TextSelectorType.TEXT
-                        )
+                    vol.Required(CONF_TOP_N, default=DEFAULT_TOP_N): _top_n_selector(),
+                    vol.Optional(
+                        CONF_WALLET_ADDRESS, default=""
+                    ): selector.TextSelector(
+                        selector.TextSelectorConfig(type=selector.TextSelectorType.TEXT)
                     ),
                 }
             ),
@@ -125,9 +123,7 @@ class PolymarketFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def _validate(self, category: str, wallet: str | None) -> None:
         """Hit the APIs once to confirm the category (and wallet) work."""
-        client = PolymarketApiClient(
-            session=async_create_clientsession(self.hass)
-        )
+        client = PolymarketApiClient(session=async_create_clientsession(self.hass))
         await client.async_get_category_markets(category, top_n=1)
         if wallet:
             await client.async_get_portfolio(wallet, top_n=1)
@@ -135,7 +131,7 @@ class PolymarketFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
     @staticmethod
     @callback
     def async_get_options_flow(
-        config_entry: config_entries.ConfigEntry,
+        config_entry: config_entries.ConfigEntry,  # noqa: ARG004
     ) -> PolymarketOptionsFlow:
         """Return the options flow."""
         return PolymarketOptionsFlow()

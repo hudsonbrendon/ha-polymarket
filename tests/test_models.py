@@ -1,10 +1,10 @@
 """Tests for Polymarket model parsing (pure, no HA, no network)."""
 
 from custom_components.polymarket.models import (
+    Portfolio,
     parse_market,
     parse_portfolio_value,
     parse_position,
-    Portfolio,
 )
 
 RAW_MARKET = {

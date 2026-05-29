@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import socket
 from typing import TYPE_CHECKING, Any
 
@@ -68,12 +67,10 @@ class PolymarketApiClient:
         for event in events if isinstance(events, list) else []:
             event_title = str(event.get("title", ""))
             event_slug = str(event.get("slug", ""))
-            for raw_market in event.get("markets", []) or []:
-                markets.append(
-                    parse_market(
-                        raw_market, event_title=event_title, event_slug=event_slug
-                    )
-                )
+            markets.extend(
+                parse_market(raw_market, event_title=event_title, event_slug=event_slug)
+                for raw_market in event.get("markets", []) or []
+            )
         return markets[:top_n]
 
     async def async_get_midpoint(self, token_id: str) -> float | None:
@@ -93,9 +90,7 @@ class PolymarketApiClient:
 
     async def async_get_portfolio(self, wallet: str, top_n: int = 25) -> Portfolio:
         """Return a wallet's value and its top positions by current value."""
-        value_payload = await self._get(
-            f"{DATA_BASE}/value", params={"user": wallet}
-        )
+        value_payload = await self._get(f"{DATA_BASE}/value", params={"user": wallet})
         positions_payload = await self._get(
             f"{DATA_BASE}/positions",
             params={
@@ -107,7 +102,9 @@ class PolymarketApiClient:
         )
         positions = [
             parse_position(raw)
-            for raw in (positions_payload if isinstance(positions_payload, list) else [])
+            for raw in (
+                positions_payload if isinstance(positions_payload, list) else []
+            )
         ]
         return Portfolio(
             wallet=wallet,
@@ -115,18 +112,16 @@ class PolymarketApiClient:
             positions=positions,
         )
 
-    async def _get(
-        self, url: str, params: Mapping[str, Any] | None = None
-    ) -> Any:
+    async def _get(self, url: str, params: Mapping[str, Any] | None = None) -> Any:
         """Perform a GET request and return parsed JSON."""
         try:
-            async with async_timeout.timeout(_TIMEOUT):
-                async with self._session.request(
-                    method="get", url=url, params=params
-                ) as response:
-                    response.raise_for_status()
-                    return await response.json()
-        except (TimeoutError, asyncio.TimeoutError) as exception:
+            async with (
+                async_timeout.timeout(_TIMEOUT),
+                self._session.request(method="get", url=url, params=params) as response,
+            ):
+                response.raise_for_status()
+                return await response.json()
+        except TimeoutError as exception:
             msg = f"Timeout fetching {url}"
             raise PolymarketApiClientCommunicationError(msg) from exception
         except (aiohttp.ClientError, socket.gaierror) as exception:
@@ -134,6 +129,6 @@ class PolymarketApiClient:
             raise PolymarketApiClientCommunicationError(msg) from exception
         except PolymarketApiClientError:
             raise
-        except Exception as exception:  # noqa: BLE001
+        except Exception as exception:
             msg = f"Unexpected error fetching {url}: {exception}"
             raise PolymarketApiClientError(msg) from exception

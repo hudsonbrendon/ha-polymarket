@@ -4,14 +4,14 @@ Uses a sys.meta_path finder that automatically creates stub modules for every
 ``homeassistant.*`` import so tests that only exercise pure-Python code (like
 models.py) can run without a full HA installation.
 """
+
 from __future__ import annotations
 
 import enum
-import importlib
 import sys
 import types
 from contextlib import asynccontextmanager
-from importlib.abc import MetaPathFinder, Loader
+from importlib.abc import Loader, MetaPathFinder
 from importlib.machinery import ModuleSpec
 
 
@@ -21,10 +21,10 @@ class _Stub:
     def __init__(self, *args, **kwargs):
         pass
 
-    def __getattr__(self, name: str) -> "_Stub":
+    def __getattr__(self, name: str) -> _Stub:
         return _Stub()
 
-    def __call__(self, *args, **kwargs) -> "_Stub":
+    def __call__(self, *args, **kwargs) -> _Stub:
         return _Stub()
 
     def __iter__(self):

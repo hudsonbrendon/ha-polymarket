@@ -1,4 +1,5 @@
-"""Pure data models and parsers for Polymarket API payloads.
+"""
+Pure data models and parsers for Polymarket API payloads.
 
 This module imports nothing from Home Assistant or aiohttp so it can be
 unit-tested in isolation. All parsers are defensive: the Gamma API returns
@@ -81,7 +82,9 @@ class MarketInfo:
     midpoint: float | None = field(default=None)
 
 
-def parse_market(raw: dict[str, Any], *, event_title: str, event_slug: str) -> MarketInfo:
+def parse_market(
+    raw: dict[str, Any], *, event_title: str, event_slug: str
+) -> MarketInfo:
     """Build a MarketInfo from a Gamma `markets[]` entry."""
     outcomes = _as_str_list(raw.get("outcomes"))
     prices = _as_float_list(raw.get("outcomePrices"))
