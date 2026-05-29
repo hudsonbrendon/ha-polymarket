@@ -39,7 +39,7 @@ class MarketResolvedBinarySensor(PolymarketMarketEntity, BinarySensorEntity):
         self._attr_unique_id = (
             f"{coordinator.config_entry.entry_id}_{market_id}_resolved"
         )
-        self._attr_name = "Resolved"
+        self._attr_translation_key = "resolved"
 
     @property
     def is_on(self) -> bool | None:
