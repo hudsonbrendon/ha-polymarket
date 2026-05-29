@@ -90,3 +90,27 @@ def test_get_category_markets_unknown_tag_raises():
     except PolymarketApiClientError:
         return
     raise AssertionError("expected PolymarketApiClientError for unknown tag")
+
+
+VALUE_PAYLOAD = [{"user": "0xabc", "value": 1234.5}]
+POSITIONS_PAYLOAD = [
+    {"title": "P1", "currentValue": 900.0, "cashPnl": 100.0, "outcome": "Yes"},
+    {"title": "P2", "currentValue": 300.0, "cashPnl": -20.0, "outcome": "No"},
+]
+
+
+def test_get_portfolio_builds_value_and_positions():
+    session = _FakeSession({"/value": VALUE_PAYLOAD, "/positions": POSITIONS_PAYLOAD})
+    client = PolymarketApiClient(session=session)
+    portfolio = asyncio.run(client.async_get_portfolio("0xabc"))
+
+    assert portfolio.value == 1234.5
+    assert portfolio.position_count == 2
+    assert portfolio.total_cash_pnl == 80.0
+    assert portfolio.largest_position.title == "P1"
+
+
+def test_get_midpoint_parses_mid():
+    session = _FakeSession({"/midpoint": {"mid": "0.42"}})
+    client = PolymarketApiClient(session=session)
+    assert asyncio.run(client.async_get_midpoint("T1")) == 0.42
