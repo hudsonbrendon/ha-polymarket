@@ -10,6 +10,7 @@ import enum
 import importlib
 import sys
 import types
+from contextlib import asynccontextmanager
 from importlib.abc import MetaPathFinder, Loader
 from importlib.machinery import ModuleSpec
 
@@ -134,4 +135,11 @@ _aiohttp.ClientResponse = _Stub  # type: ignore[attr-defined]
 
 # async_timeout
 _at = _get("async_timeout")
-_at.timeout = _Stub  # type: ignore[attr-defined]
+
+
+@asynccontextmanager
+async def _async_timeout_stub(*args, **kwargs):
+    yield
+
+
+_at.timeout = _async_timeout_stub  # type: ignore[attr-defined]
