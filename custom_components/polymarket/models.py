@@ -121,15 +121,66 @@ def parse_market(raw: dict[str, Any], *, event_title: str, event_slug: str) -> M
     )
 
 
-# ---------------------------------------------------------------------------
-# Placeholder stubs — filled in during the position/portfolio TDD cycle.
-# ---------------------------------------------------------------------------
+@dataclass
+class Position:
+    """An open position held by a wallet."""
 
-def parse_position(raw: dict[str, Any]) -> Any:  # pragma: no cover
-    """Stub: replaced in Step 8."""
-    raise NotImplementedError("parse_position not yet implemented")
+    title: str
+    outcome: str
+    size: float
+    avg_price: float
+    cur_price: float
+    current_value: float
+    cash_pnl: float
+    percent_pnl: float
+    slug: str
+    end_date: str | None
 
 
-def parse_portfolio_value(raw: Any) -> float:  # pragma: no cover
-    """Stub: replaced in Step 8."""
-    raise NotImplementedError("parse_portfolio_value not yet implemented")
+def parse_position(raw: dict[str, Any]) -> Position:
+    """Build a Position from a Data API `positions[]` entry."""
+    return Position(
+        title=str(raw.get("title", "")),
+        outcome=str(raw.get("outcome", "")),
+        size=_as_float(raw.get("size")),
+        avg_price=_as_float(raw.get("avgPrice")),
+        cur_price=_as_float(raw.get("curPrice")),
+        current_value=_as_float(raw.get("currentValue")),
+        cash_pnl=_as_float(raw.get("cashPnl")),
+        percent_pnl=_as_float(raw.get("percentPnl")),
+        slug=str(raw.get("slug", "")),
+        end_date=raw.get("endDate"),
+    )
+
+
+def parse_portfolio_value(raw: Any) -> float:
+    """Read the wallet value from the Data API `/value` array response."""
+    if isinstance(raw, list) and raw:
+        return _as_float(raw[0].get("value"))
+    return 0.0
+
+
+@dataclass
+class Portfolio:
+    """Aggregated wallet portfolio."""
+
+    wallet: str
+    value: float
+    positions: list[Position]
+
+    @property
+    def position_count(self) -> int:
+        """Number of open positions."""
+        return len(self.positions)
+
+    @property
+    def total_cash_pnl(self) -> float:
+        """Sum of unrealized cash P&L across all positions."""
+        return round(sum(p.cash_pnl for p in self.positions), 2)
+
+    @property
+    def largest_position(self) -> Position | None:
+        """The position with the greatest current value, if any."""
+        if not self.positions:
+            return None
+        return max(self.positions, key=lambda p: p.current_value)
