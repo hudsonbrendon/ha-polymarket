@@ -1,4 +1,4 @@
-"""Custom types for integration_blueprint."""
+"""Runtime data structures for the Polymarket integration."""
 
 from __future__ import annotations
 
@@ -10,16 +10,25 @@ if TYPE_CHECKING:
     from homeassistant.loader import Integration
 
     from .api import PolymarketApiClient
-    from .coordinator import BlueprintDataUpdateCoordinator
-
-
-type IntegrationBlueprintConfigEntry = ConfigEntry[IntegrationBlueprintData]
+    from .coordinator import PolymarketDataUpdateCoordinator
+    from .models import MarketInfo, Portfolio
 
 
 @dataclass
-class IntegrationBlueprintData:
-    """Data for the Blueprint integration."""
+class PolymarketCoordinatorData:
+    """Payload produced by the coordinator on each poll."""
+
+    markets: list[MarketInfo]
+    portfolio: Portfolio | None
+
+
+@dataclass
+class PolymarketRuntimeData:
+    """Data stored on the config entry's runtime_data."""
 
     client: PolymarketApiClient
-    coordinator: BlueprintDataUpdateCoordinator
+    coordinator: PolymarketDataUpdateCoordinator
     integration: Integration
+
+
+type PolymarketConfigEntry = ConfigEntry[PolymarketRuntimeData]
